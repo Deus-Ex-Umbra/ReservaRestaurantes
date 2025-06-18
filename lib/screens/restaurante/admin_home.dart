@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 import 'package:intl/intl.dart';
-import 'buscar.dart'; // Importamos el archivo buscar.dart
+import 'buscar.dart';
 import 'reservas.dart';
-import 'perfil.dart'; // Importamos el archivo perfil.dart
+import 'perfil.dart';
 
 class AdminHomeScreen extends StatelessWidget {
   @override
@@ -37,7 +37,7 @@ class AdminHomeScreen extends StatelessWidget {
     ];
 
     return Scaffold(
-      backgroundColor: Color(0xFF0c0f14), // Fondo oscuro
+      backgroundColor: Color(0xFFf5f5f5), // Fondo claro
       body: SingleChildScrollView(
         padding: EdgeInsets.all(20),
         child: Column(
@@ -52,21 +52,32 @@ class AdminHomeScreen extends StatelessWidget {
                   children: [
                     Text(
                       'Bienvenido, Admin',
-                      style: TextStyle(fontSize: 16, color: Color(0xFF8B9AAB)),
+                      style: TextStyle(fontSize: 16, color: Color(0xFF666666)),
                     ),
                     Text(
                       'Panel de Control',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: Colors.black,
                       ),
                     ),
                   ],
                 ),
-                CircleAvatar(
-                  radius: 25,
-                  backgroundImage: AssetImage('assets/admin_profile.jpg'),
+                GestureDetector(
+                  onTap: () {
+                    // Navegación a la pantalla de perfil
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => AdminProfileScreen(),
+                      ),
+                    );
+                  },
+                  child: CircleAvatar(
+                    radius: 25,
+                    backgroundImage: AssetImage('assets/admin_profile.jpg'),
+                  ),
                 ),
               ],
             ),
@@ -78,7 +89,7 @@ class AdminHomeScreen extends StatelessWidget {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: Colors.black,
               ),
             ),
             SizedBox(height: 15),
@@ -129,15 +140,23 @@ class AdminHomeScreen extends StatelessWidget {
               height: 250,
               padding: EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Color(0xFF1A1F2E),
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    spreadRadius: 1,
+                    blurRadius: 10,
+                    offset: Offset(0, 3),
+                  ),
+                ],
               ),
               child: SfCartesianChart(
                 primaryXAxis: CategoryAxis(
-                  labelStyle: TextStyle(color: Color(0xFF8B9AAB)),
+                  labelStyle: TextStyle(color: Color(0xFF666666)),
                 ),
                 primaryYAxis: NumericAxis(
-                  labelStyle: TextStyle(color: Color(0xFF8B9AAB)),
+                  labelStyle: TextStyle(color: Color(0xFF666666)),
                 ),
                 series: <CartesianSeries>[
                   ColumnSeries<ReservationData, String>(
@@ -148,7 +167,7 @@ class AdminHomeScreen extends StatelessWidget {
                     color: Color(0xFFd17842), // Naranja
                     dataLabelSettings: DataLabelSettings(
                       isVisible: true,
-                      textStyle: TextStyle(color: Colors.white),
+                      textStyle: TextStyle(color: Colors.black),
                     ),
                   ),
                 ],
@@ -163,19 +182,27 @@ class AdminHomeScreen extends StatelessWidget {
               height: 250,
               padding: EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Color(0xFF1A1F2E),
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    spreadRadius: 1,
+                    blurRadius: 10,
+                    offset: Offset(0, 3),
+                  ),
+                ],
               ),
               child: SfCartesianChart(
                 primaryXAxis: CategoryAxis(
-                  labelStyle: TextStyle(color: Color(0xFF8B9AAB)),
+                  labelStyle: TextStyle(color: Color(0xFF666666)),
                 ),
                 primaryYAxis: NumericAxis(
                   numberFormat: NumberFormat.currency(
                     locale: 'es',
                     symbol: '\$',
                   ),
-                  labelStyle: TextStyle(color: Color(0xFF8B9AAB)),
+                  labelStyle: TextStyle(color: Color(0xFF666666)),
                 ),
                 series: <CartesianSeries>[
                   LineSeries<RevenueData, String>(
@@ -186,7 +213,7 @@ class AdminHomeScreen extends StatelessWidget {
                     markerSettings: MarkerSettings(isVisible: true),
                     dataLabelSettings: DataLabelSettings(
                       isVisible: true,
-                      textStyle: TextStyle(color: Colors.white),
+                      textStyle: TextStyle(color: Colors.black),
                     ),
                   ),
                 ],
@@ -201,16 +228,24 @@ class AdminHomeScreen extends StatelessWidget {
               height: 250,
               padding: EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Color(0xFF1A1F2E),
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    spreadRadius: 1,
+                    blurRadius: 10,
+                    offset: Offset(0, 3),
+                  ),
+                ],
               ),
               child: SfCartesianChart(
                 primaryXAxis: CategoryAxis(
-                  labelStyle: TextStyle(color: Color(0xFF8B9AAB)),
+                  labelStyle: TextStyle(color: Color(0xFF666666)),
                 ),
                 primaryYAxis: NumericAxis(
                   maximum: 100,
-                  labelStyle: TextStyle(color: Color(0xFF8B9AAB)),
+                  labelStyle: TextStyle(color: Color(0xFF666666)),
                 ),
                 series: <CartesianSeries>[
                   BarSeries<TableData, String>(
@@ -220,7 +255,7 @@ class AdminHomeScreen extends StatelessWidget {
                     color: Color(0xFF8B9AAB),
                     dataLabelSettings: DataLabelSettings(
                       isVisible: true,
-                      textStyle: TextStyle(color: Colors.white),
+                      textStyle: TextStyle(color: Colors.black),
                     ),
                   ),
                 ],
@@ -235,11 +270,11 @@ class AdminHomeScreen extends StatelessWidget {
                 _buildSectionTitle('Reservas Recientes', Icons.event_note),
                 TextButton(
                   onPressed: () {
-                    // Navegación a la pantalla buscar.dart
+                    // Navegación a la pantalla de reservas
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => BuscarSucursalesScreen(),
+                        builder: (context) => AdminReservationsScreen(),
                       ),
                     );
                   },
@@ -296,7 +331,7 @@ class AdminHomeScreen extends StatelessWidget {
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: Colors.black,
           ),
         ),
       ],
@@ -313,8 +348,16 @@ class AdminHomeScreen extends StatelessWidget {
     return Container(
       padding: EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: Color(0xFF1A1F2E),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            spreadRadius: 1,
+            blurRadius: 10,
+            offset: Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -335,13 +378,13 @@ class AdminHomeScreen extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: Colors.black,
                 ),
               ),
             ],
           ),
           SizedBox(height: 15),
-          Text(title, style: TextStyle(color: Color(0xFF8B9AAB), fontSize: 14)),
+          Text(title, style: TextStyle(color: Color(0xFF666666), fontSize: 14)),
           SizedBox(height: 5),
           Text(subtitle, style: TextStyle(color: color, fontSize: 12)),
         ],
@@ -360,8 +403,16 @@ class AdminHomeScreen extends StatelessWidget {
       margin: EdgeInsets.only(bottom: 10),
       padding: EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: Color(0xFF1A1F2E),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            spreadRadius: 1,
+            blurRadius: 5,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -381,14 +432,14 @@ class AdminHomeScreen extends StatelessWidget {
                 Text(
                   name,
                   style: TextStyle(
-                    color: Colors.white,
+                    color: Colors.black,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 SizedBox(height: 5),
                 Text(
                   details,
-                  style: TextStyle(color: Color(0xFF8B9AAB), fontSize: 12),
+                  style: TextStyle(color: Color(0xFF666666), fontSize: 12),
                 ),
               ],
             ),

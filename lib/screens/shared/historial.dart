@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class ReservasScreen extends StatefulWidget {
+  final int clienteId; // ID del cliente para obtener sus reservas
+
+  const ReservasScreen({Key? key, required this.clienteId}) : super(key: key);
+
   @override
   _ReservasScreenState createState() => _ReservasScreenState();
 }
@@ -10,48 +16,9 @@ class _ReservasScreenState extends State<ReservasScreen>
     with TickerProviderStateMixin {
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
-
-  // Datos estáticos de ejemplo mejorados
-  final List<Reservation> reservations = [
-    Reservation(
-      id: 'RES-001',
-      date: DateTime.now().add(Duration(days: 2)),
-      time: '19:30',
-      guestCount: 4,
-      tableNumber: 12,
-      status: 'Confirmada',
-      createdAt: DateTime.now().subtract(Duration(days: 1)),
-      restaurantName: 'La Trattoria',
-      restaurantAddress: 'Av. Principal 123, Ciudad',
-      restaurantPhone: '+1 234 567 890',
-      paymentMethod: 'Tarjeta Visa terminada en 4242',
-    ),
-    Reservation(
-      id: 'RES-002',
-      date: DateTime.now().add(Duration(days: 5)),
-      time: '20:00',
-      guestCount: 2,
-      tableNumber: 5,
-      status: 'Pendiente',
-      createdAt: DateTime.now().subtract(Duration(hours: 3)),
-      restaurantName: 'Sushi Palace',
-      restaurantAddress: 'Calle Sushi 456, Ciudad',
-      restaurantPhone: '+1 987 654 321',
-    ),
-    Reservation(
-      id: 'RES-003',
-      date: DateTime.now().add(Duration(days: 7)),
-      time: '14:00',
-      guestCount: 6,
-      tableNumber: 8,
-      status: 'Cancelada',
-      createdAt: DateTime.now().subtract(Duration(days: 2)),
-      restaurantName: 'Carnes Premium',
-      restaurantAddress: 'Boulevard Carnes 789, Ciudad',
-      restaurantPhone: '+1 555 123 4567',
-      cancellationReason: 'Cambio de planes',
-    ),
-  ];
+  late Future<List<Reservation>> _reservasFuture;
+  bool _isLoading = true;
+  String _errorMessage = '';
 
   @override
   void initState() {
@@ -64,6 +31,52 @@ class _ReservasScreenState extends State<ReservasScreen>
       CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
     );
     _fadeController.forward();
+
+    // Inicializar la carga de reservas
+    _reservasFuture = _fetchReservas();
+  }
+
+  Future<List<Reservation>> _fetchReservas() async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+          'http://127.0.0.1:8000/api/cliente/reservas/${widget.clienteId}',
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final List<dynamic> reservasData = data['reservas'] ?? [];
+
+        setState(() {
+          _isLoading = false;
+        });
+
+        return reservasData
+            .map((reserva) => Reservation.fromJson(reserva))
+            .toList();
+      } else {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Error al cargar reservas: ${response.statusCode}';
+        });
+        return [];
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Error de conexión: $e';
+      });
+      return [];
+    }
+  }
+
+  Future<void> _refreshReservas() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+    _reservasFuture = _fetchReservas();
   }
 
   @override
@@ -77,8 +90,8 @@ class _ReservasScreenState extends State<ReservasScreen>
     return Scaffold(
       body: FoodieBackground(
         foodOpacity: 0.08,
-        child: FadeTransition(
-          opacity: _fadeAnimation,
+        child: RefreshIndicator(
+          onRefresh: _refreshReservas,
           child: CustomScrollView(
             slivers: [
               SliverPadding(
@@ -86,25 +99,99 @@ class _ReservasScreenState extends State<ReservasScreen>
                   horizontal: 50,
                   vertical: 30,
                 ),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    return AnimatedBuilder(
-                      animation: _fadeAnimation,
-                      builder: (context, child) {
-                        return Transform.translate(
-                          offset: Offset(0, 30 * (1 - _fadeAnimation.value)),
-                          child: Opacity(
-                            opacity: _fadeAnimation.value,
-                            child: _buildReservationCard(
-                              context,
-                              reservations[index],
-                              index,
-                            ),
+                sliver: FutureBuilder<List<Reservation>>(
+                  future: _reservasFuture,
+                  builder: (context, snapshot) {
+                    if (_isLoading) {
+                      return SliverFillRemaining(
+                        child: Center(child: CircularProgressIndicator()),
+                      );
+                    }
+
+                    if (_errorMessage.isNotEmpty) {
+                      return SliverFillRemaining(
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                _errorMessage,
+                                style: TextStyle(color: Colors.red),
+                              ),
+                              SizedBox(height: 20),
+                              ElevatedButton(
+                                onPressed: _refreshReservas,
+                                child: Text('Reintentar'),
+                              ),
+                            ],
                           ),
+                        ),
+                      );
+                    }
+
+                    if (snapshot.hasData && snapshot.data!.isEmpty) {
+                      return SliverFillRemaining(
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.calendar_today,
+                                size: 60,
+                                color: Colors.grey,
+                              ),
+                              SizedBox(height: 20),
+                              Text(
+                                'No tienes reservas',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                              SizedBox(height: 10),
+                              Text(
+                                'Cuando hagas una reserva, aparecerá aquí',
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    if (snapshot.hasError) {
+                      return SliverFillRemaining(
+                        child: Center(
+                          child: Text('Error al cargar las reservas'),
+                        ),
+                      );
+                    }
+
+                    return SliverList(
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final reservation = snapshot.data![index];
+                        return AnimatedBuilder(
+                          animation: _fadeAnimation,
+                          builder: (context, child) {
+                            return Transform.translate(
+                              offset: Offset(
+                                0,
+                                30 * (1 - _fadeAnimation.value),
+                              ),
+                              child: Opacity(
+                                opacity: _fadeAnimation.value,
+                                child: _buildReservationCard(
+                                  context,
+                                  reservation,
+                                  index,
+                                ),
+                              ),
+                            );
+                          },
                         );
-                      },
+                      }, childCount: snapshot.data?.length ?? 0),
                     );
-                  }, childCount: reservations.length),
+                  },
                 ),
               ),
             ],
@@ -811,6 +898,29 @@ class Reservation {
     this.paymentMethod,
     this.cancellationReason,
   });
+
+  factory Reservation.fromJson(Map<String, dynamic> json) {
+    return Reservation(
+      id: json['id'].toString(),
+      date: DateTime.parse(json['date']),
+      time: json['time'] ?? '',
+      guestCount:
+          json['guest_count'] is int
+              ? json['guest_count']
+              : int.tryParse(json['guest_count'].toString()) ?? 0,
+      tableNumber:
+          json['table_number'] is int
+              ? json['table_number']
+              : int.tryParse(json['table_number'].toString()) ?? 0,
+      status: json['status'] ?? '',
+      createdAt: DateTime.parse(json['created_at']),
+      restaurantName: json['restaurant_name'],
+      restaurantAddress: json['restaurant_address'],
+      restaurantPhone: json['restaurant_phone'],
+      paymentMethod: json['payment_method'],
+      cancellationReason: json['cancellation_reason'],
+    );
+  }
 }
 
 class FoodieBackground extends StatelessWidget {

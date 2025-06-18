@@ -27,7 +27,7 @@ class _MainWrapperState extends State<MainWrapper> {
   final List<Widget> _screens = [
     RecipeHomePage(),
     BuscarPage(),
-    ReservasScreen(),
+    ReservasScreen(clienteId: 1),
     FavoritosScreen(),
     ProfileSettingsPage(),
   ];

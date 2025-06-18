@@ -38,16 +38,18 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final response = await _authService.login(request);
 
-      // Obtener datos adicionales del perfil si es necesario
-      final userProfile = await _authService.getProfile();
-
+      // Navegar según el rol del usuario
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => MainWrapper(user: userProfile)),
+        MaterialPageRoute(
+          builder: (context) => MainWrapper(user: response.user),
+        ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+      _showErrorDialog(
+        e.toString().contains('Exception:')
+            ? e.toString().split('Exception:')[1].trim()
+            : 'Error al iniciar sesión. Por favor intenta nuevamente.',
       );
     } finally {
       if (mounted) {

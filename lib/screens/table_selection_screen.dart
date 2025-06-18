@@ -140,7 +140,7 @@ class _TableSelectionScreenState extends State<TableSelectionScreen> {
             bottom: 0,
             child: SingleChildScrollView(
               child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 80),
+                margin: const EdgeInsets.symmetric(horizontal: 40),
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: Colors.white,

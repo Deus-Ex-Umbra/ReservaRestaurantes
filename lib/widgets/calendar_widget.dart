@@ -265,7 +265,9 @@ class CalendarWidget extends StatelessWidget {
       Color textColor = Colors.black;
 
       if (isSelected) {
-        buttonColor = const Color(0xFF4285F4);
+        buttonColor = const Color(
+          0xFF4285F4,
+        ); // Color específico para el botón seleccionado
         shadowColor = const Color(0xFF4285F4);
         textColor = Colors.white;
       } else if (hasDiscount) {
@@ -358,7 +360,12 @@ class CurvedBackgroundPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint =
         Paint()
-          ..color = const Color.fromARGB(255, 244, 125, 66)
+          ..color = const Color.fromARGB(
+            255,
+            54,
+            94,
+            252,
+          ) // Color específico para el fondo
           ..style = PaintingStyle.fill;
 
     final path = Path();

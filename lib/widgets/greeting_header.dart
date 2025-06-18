@@ -27,7 +27,7 @@ class GreetingHeader extends StatelessWidget {
                     profileImagePath != null
                         ? AssetImage(profileImagePath!)
                         : null,
-                backgroundColor: Colors.grey[300],
+                backgroundColor: const Color.fromARGB(255, 56, 159, 243),
                 child:
                     profileImagePath == null
                         ? Icon(Icons.person, color: Colors.grey[600])

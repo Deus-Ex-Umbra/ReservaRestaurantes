@@ -3,9 +3,64 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'dart:async';
 import 'package:flutter_application/screens/shared/reserva.dart';
 import '../time_selection_screen.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+// Define Restaurante class if not already defined or import it from its file
+class Restaurante {
+  final int id;
+  final int idUsuario;
+  final String nombreRestaurante;
+  final String direccion;
+  final String telefono;
+  final String categoria;
+  final String horarioApertura;
+  final String horarioCierre;
+  final String tipoRestaurante;
+  final String calificacion;
+  final String? rutaImagenRestaurante;
+  final String? imagenBase64;
+  final List<dynamic> menus;
+
+  Restaurante({
+    required this.id,
+    required this.idUsuario,
+    required this.nombreRestaurante,
+    required this.direccion,
+    required this.telefono,
+    required this.categoria,
+    required this.horarioApertura,
+    required this.horarioCierre,
+    required this.tipoRestaurante,
+    required this.calificacion,
+    this.rutaImagenRestaurante,
+    this.imagenBase64,
+    required this.menus,
+  });
+
+  factory Restaurante.fromJson(Map<String, dynamic> json) {
+    return Restaurante(
+      id: json['id'],
+      idUsuario: json['id_usuario'],
+      nombreRestaurante: json['nombre_restaurante'],
+      direccion: json['direccion'],
+      telefono: json['telefono'],
+      categoria: json['categoria'],
+      horarioApertura: json['horario_apertura'],
+      horarioCierre: json['horario_cierre'],
+      tipoRestaurante: json['tipo_restaurante'],
+      calificacion: json['calificacion'],
+      rutaImagenRestaurante: json['ruta_imagen_restaurante'],
+      imagenBase64: json['imagen_base64'],
+      menus: json['menus'] ?? [],
+    );
+  }
+}
 
 class RestaurantDetailScreen extends StatefulWidget {
-  const RestaurantDetailScreen({super.key});
+  final int restaurantId;
+
+  const RestaurantDetailScreen({super.key, required this.restaurantId});
 
   @override
   State<RestaurantDetailScreen> createState() => _RestaurantDetailScreenState();
@@ -23,13 +78,15 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
   final GlobalKey _addressKey = GlobalKey();
   bool _showStickyNavBar = false;
   double _addressPosition = 0;
+  late Future<Restaurante> _restauranteFuture;
+  Restaurante? _restaurante;
 
   static const LatLng _center = LatLng(-19.0429, -65.2554);
   final Set<Marker> _markers = {
     const Marker(
       markerId: MarkerId('restaurant'),
       position: LatLng(-19.0429, -65.2554),
-      infoWindow: InfoWindow(title: 'Malaba'),
+      infoWindow: InfoWindow(title: 'Restaurante'),
     ),
   };
 
@@ -38,9 +95,78 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
     super.initState();
     _dateOptions = _generateDateOptions();
     _scrollController.addListener(_scrollListener);
+    _restauranteFuture = _fetchRestaurante();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _calculateAddressPosition();
     });
+  }
+
+  List<Map<String, dynamic>> _generateDateOptions() {
+    final now = DateTime.now();
+    return List.generate(7, (index) {
+      final date = now.add(Duration(days: index));
+      final dayName = _getDayName(date.weekday);
+      final monthName = _getMonthName(date.month);
+      final displayText = '$dayName, ${date.day} $monthName';
+      return {'date': date, 'displayText': displayText};
+    });
+  }
+
+  String _getDayName(int weekday) {
+    const days = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+    return days[(weekday - 1) % 7];
+  }
+
+  String _getMonthName(int month) {
+    const months = [
+      'Ene',
+      'Feb',
+      'Mar',
+      'Abr',
+      'May',
+      'Jun',
+      'Jul',
+      'Ago',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dic',
+    ];
+    return months[(month - 1) % 12];
+  }
+
+  Future<Restaurante> _fetchRestaurante() async {
+    final response = await http.get(
+      Uri.parse(
+        'http://127.0.0.1:8000/api/publico/restaurante/${widget.restaurantId}',
+      ),
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      setState(() {
+        _restaurante = Restaurante.fromJson(data['usuario_restaurante']);
+      });
+      return Restaurante.fromJson(data['usuario_restaurante']);
+    } else {
+      throw Exception('Failed to load restaurant');
+    }
+  }
+
+  void _scrollListener() {
+    // Example logic: show sticky navbar when scrolled past address position
+    if (_scrollController.hasClients) {
+      final offset = _scrollController.offset;
+      if (offset > _addressPosition && !_showStickyNavBar) {
+        setState(() {
+          _showStickyNavBar = true;
+        });
+      } else if (offset <= _addressPosition && _showStickyNavBar) {
+        setState(() {
+          _showStickyNavBar = false;
+        });
+      }
+    }
   }
 
   @override
@@ -61,117 +187,8 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
     }
   }
 
-  void _scrollListener() {
-    final scrollPosition = _scrollController.position.pixels;
-    final newShowStickyNavBar = scrollPosition > _addressPosition - 100;
-
-    if (newShowStickyNavBar != _showStickyNavBar) {
-      setState(() {
-        _showStickyNavBar = newShowStickyNavBar;
-      });
-    }
-
-    final reservationsContext = _reservationsKey.currentContext;
-    final menuContext = _menuKey.currentContext;
-    final detailsContext = _detailsKey.currentContext;
-
-    if (reservationsContext != null &&
-        menuContext != null &&
-        detailsContext != null) {
-      final reservationsPosition =
-          reservationsContext.findRenderObject() as RenderBox;
-      final menuPosition = menuContext.findRenderObject() as RenderBox;
-      final detailsPosition = detailsContext.findRenderObject() as RenderBox;
-
-      final reservationsOffset =
-          reservationsPosition.localToGlobal(Offset.zero).dy;
-      final menuOffset = menuPosition.localToGlobal(Offset.zero).dy;
-      final detailsOffset = detailsPosition.localToGlobal(Offset.zero).dy;
-
-      if (scrollPosition >= detailsOffset - 100) {
-        setState(() => _currentSection = 2);
-      } else if (scrollPosition >= menuOffset - 100) {
-        setState(() => _currentSection = 1);
-      } else {
-        setState(() => _currentSection = 0);
-      }
-    }
-  }
-
-  void _scrollToSection(int section) {
-    final key =
-        section == 0
-            ? _reservationsKey
-            : section == 1
-            ? _menuKey
-            : _detailsKey;
-    final context = key.currentContext;
-    if (context != null) {
-      Scrollable.ensureVisible(
-        context,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
-      );
-    }
-  }
-
-  List<Map<String, dynamic>> _generateDateOptions() {
-    final now = DateTime.now();
-    final List<Map<String, dynamic>> dateOptions = [];
-
-    for (int i = 1; i <= 7; i++) {
-      final date = now.add(Duration(days: i));
-      final dayName = _getDayName(date.weekday);
-      final monthName = _getMonthName(date.month);
-
-      dateOptions.add({
-        'date': date,
-        'displayText': '$dayName ${date.day} $monthName',
-      });
-    }
-
-    return dateOptions;
-  }
-
-  String _getDayName(int weekday) {
-    const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-    return days[weekday % 7];
-  }
-
-  String _getMonthName(int month) {
-    const months = [
-      'ene',
-      'feb',
-      'mar',
-      'abr',
-      'may',
-      'jun',
-      'jul',
-      'ago',
-      'sep',
-      'oct',
-      'nov',
-      'dic',
-    ];
-    return months[month - 1];
-  }
-
-  void _navigateToReservation(BuildContext context) {
-    if (_selectedDateIndex != -1) {
-      final selectedDate = _dateOptions[_selectedDateIndex]['date'];
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => RestauranteApp(initialDate: selectedDate),
-        ),
-      );
-    } else {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const RestauranteApp()),
-      );
-    }
-  }
+  // ... (mantén los métodos _scrollListener, _scrollToSection, _generateDateOptions,
+  // _getDayName, _getMonthName, _navigateToReservation iguales)
 
   Widget _buildInfoRow(
     IconData icon,
@@ -222,7 +239,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
     );
   }
 
-  Widget _buildPopularDishCard(String name, String price, String imageUrl) {
+  Widget _buildPopularDishCard(String name, String price, String? imageUrl) {
     return Container(
       width: 180,
       margin: const EdgeInsets.only(right: 16),
@@ -246,18 +263,27 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
             height: 120,
             width: double.infinity,
             decoration: BoxDecoration(color: Colors.grey[200]),
-            child: Image.network(
-              imageUrl,
-              fit: BoxFit.cover,
-              errorBuilder:
-                  (context, error, stackTrace) => Center(
-                    child: Icon(
-                      Icons.restaurant,
-                      size: 40,
-                      color: Colors.grey[400],
+            child:
+                imageUrl != null
+                    ? Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder:
+                          (context, error, stackTrace) => Center(
+                            child: Icon(
+                              Icons.restaurant,
+                              size: 40,
+                              color: Colors.grey[400],
+                            ),
+                          ),
+                    )
+                    : Center(
+                      child: Icon(
+                        Icons.restaurant,
+                        size: 40,
+                        color: Colors.grey[400],
+                      ),
                     ),
-                  ),
-            ),
           ),
           Padding(
             padding: const EdgeInsets.all(12),
@@ -487,191 +513,191 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
   }
 
   Widget _buildHeader() {
-    return Column(
-      children: [
-        // Restaurant image with overlay
-        Stack(
+    return FutureBuilder<Restaurante>(
+      future: _restauranteFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError) {
+          return Center(child: Text('Error al cargar el restaurante'));
+        } else if (!snapshot.hasData) {
+          return Center(child: Text('No se encontró el restaurante'));
+        }
+
+        final restaurante = snapshot.data!;
+
+        return Column(
           children: [
-            Container(
-              height: 300,
-              width: double.infinity,
-              decoration: BoxDecoration(color: Colors.grey[200]),
-              child: Image.network(
-                'https://placekitten.com/600/400',
-                fit: BoxFit.cover,
-              ),
-            ),
-
-            // Header Controls
-            Positioned(
-              top: MediaQuery.of(context).padding.top,
-              left: 20,
-              right: 20,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: IconButton(
-                      icon: Icon(
-                        Icons.arrow_back_ios,
-                        size: 18,
-                        color: Colors.black,
+            Stack(
+              children: [
+                Container(
+                  height: 300,
+                  width: double.infinity,
+                  decoration: BoxDecoration(color: Colors.grey[200]),
+                  child:
+                      restaurante.imagenBase64 != null
+                          ? Image.memory(
+                            base64Decode(restaurante.imagenBase64!),
+                            fit: BoxFit.cover,
+                          )
+                          : Center(
+                            child: Icon(
+                              Icons.restaurant,
+                              size: 80,
+                              color: Colors.grey[400],
+                            ),
+                          ),
+                ),
+                Positioned(
+                  top: MediaQuery.of(context).padding.top,
+                  left: 20,
+                  right: 20,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: IconButton(
+                          icon: Icon(
+                            Icons.arrow_back_ios,
+                            size: 18,
+                            color: Colors.black,
+                          ),
+                          onPressed: () => Navigator.pop(context),
+                        ),
                       ),
-                      onPressed: () => Navigator.pop(context),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            Container(
+              width: double.infinity,
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.9,
+              ),
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              restaurante.nombreRestaurante,
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                height: 1.2,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              restaurante.categoria,
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey,
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(width: 15),
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.teal,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.teal.withOpacity(0.3),
+                              blurRadius: 6,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.star, color: Colors.white, size: 16),
+                            SizedBox(width: 4),
+                            Text(
+                              restaurante.calificacion,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 20),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        SizedBox(width: 10),
+                        _buildStatItem(Icons.access_time, '35', 'min'),
+                        SizedBox(width: 10),
+                        _buildStatItem(Icons.people, '03', 'persons'),
+                        SizedBox(width: 10),
+                        _buildStatItem(
+                          Icons.local_fire_department,
+                          '103',
+                          'kcal',
+                        ),
+                        SizedBox(width: 10),
+                        _buildStatItem(
+                          Icons.sentiment_very_satisfied,
+                          '',
+                          'Easy',
+                        ),
+                        SizedBox(width: 10),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            ),
-
-            Positioned(
-              bottom: 16,
-              right: 16,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.6),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  'Ver las 14 fotos',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
+                  SizedBox(height: 20),
+                  Row(
+                    key: _addressKey,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.location_on, size: 18, color: Colors.grey),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          restaurante.direccion,
+                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                  if (!_showStickyNavBar)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 20),
+                      child: _buildNavigationBar(),
+                    ),
+                ],
               ),
             ),
           ],
-        ),
-
-        // Restaurant info
-        Container(
-          width: double.infinity,
-          constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.9,
-          ),
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
-                          'Malaba',
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            height: 1.2,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Hamburguesas',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(width: 15),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.teal,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.teal.withOpacity(0.3),
-                          blurRadius: 6,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Icon(Icons.star, color: Colors.white, size: 16),
-                        SizedBox(width: 4),
-                        Text(
-                          '4.5',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-
-              SizedBox(height: 20),
-
-              // Restaurant Stats
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    SizedBox(width: 10),
-                    _buildStatItem(Icons.access_time, '35', 'min'),
-                    SizedBox(width: 10),
-                    _buildStatItem(Icons.people, '03', 'persons'),
-                    SizedBox(width: 10),
-                    _buildStatItem(Icons.local_fire_department, '103', 'kcal'),
-                    SizedBox(width: 10),
-                    _buildStatItem(Icons.sentiment_very_satisfied, '', 'Easy'),
-                    SizedBox(width: 10),
-                  ],
-                ),
-              ),
-
-              SizedBox(height: 20),
-
-              // Address row
-              Row(
-                key: _addressKey,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Icon(Icons.location_on, size: 18, color: Colors.grey),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      '386 Grau, Sucre, Departamento de Chuquisaca, 00000',
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
-                    ),
-                  ),
-                ],
-              ),
-
-              // Navigation bar below address (initial position)
-              if (!_showStickyNavBar)
-                Padding(
-                  padding: const EdgeInsets.only(top: 20),
-                  child: _buildNavigationBar(),
-                ),
-            ],
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -692,7 +718,12 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
           ),
           const SizedBox(height: 20),
           ElevatedButton(
-            onPressed: () {},
+            onPressed:
+                _restaurante != null
+                    ? () {
+                      // Lógica para llamar al restaurante
+                    }
+                    : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.teal,
               foregroundColor: Colors.white,
@@ -729,312 +760,287 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
   }
 
   Widget _buildMenuSection() {
-    return Container(
-      key: _menuKey,
-      width: double.infinity,
-      constraints: BoxConstraints(
-        maxWidth: MediaQuery.of(context).size.width * 0.9,
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Sección para reservar
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: const [
-                    Icon(Icons.access_time, color: Colors.teal, size: 18),
-                    SizedBox(width: 8),
-                    Text(
-                      'Reservar para',
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+    return FutureBuilder<Restaurante>(
+      future: _restauranteFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError) {
+          return Center(child: Text('Error al cargar el menú'));
+        }
+
+        final restaurante = snapshot.data!;
+
+        return Container(
+          key: _menuKey,
+          width: double.infinity,
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.9,
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: const [
+                        Icon(Icons.access_time, color: Colors.teal, size: 18),
+                        SizedBox(width: 8),
+                        Text(
+                          'Reservar para',
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: List.generate(_dateOptions.length, (index) {
+                          final option = _dateOptions[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: _buildDateButton(
+                              option['displayText'],
+                              index == _selectedDateIndex,
+                              onTap: () {
+                                setState(() {
+                                  _selectedDateIndex = index;
+                                });
+                                final selectedDate =
+                                    _dateOptions[_selectedDateIndex]['date'];
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder:
+                                        (context) => TimeSelectionScreen(
+                                          selectedDate: selectedDate,
+                                        ),
+                                  ),
+                                );
+                              },
+                            ),
+                          );
+                        }),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: List.generate(_dateOptions.length, (index) {
-                      final option = _dateOptions[index];
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: _buildDateButton(
-                          option['displayText'],
-                          index == _selectedDateIndex,
-                          onTap: () {
-                            setState(() {
-                              _selectedDateIndex = index;
-                            });
-                            final selectedDate =
-                                _dateOptions[_selectedDateIndex]['date'];
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder:
-                                    (context) => TimeSelectionScreen(
-                                      selectedDate: selectedDate,
-                                    ),
-                              ),
-                            );
-                          },
-                        ),
-                      );
-                    }),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Título de la carta
-          const Text(
-            'Carta',
-            style: TextStyle(
-              color: Colors.black,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Última modificación: febrero 2023',
-            style: TextStyle(color: Colors.grey[600], fontSize: 12),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Platos populares
-          const Text(
-            'PLATOS POPULARES',
-            style: TextStyle(
-              color: Colors.black,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 16),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _buildPopularDishCard(
-                  'Pan de elote con helado',
-                  'EUR5.50',
-                  'https://picsum.photos/200/150',
-                ),
-                SizedBox(width: 16),
-                _buildPopularDishCard(
-                  'Combo regular',
-                  'EUR9',
-                  'https://picsum.photos/201/150',
-                ),
-                SizedBox(width: 16),
-                _buildPopularDishCard(
-                  'Nachos especiales',
-                  'EUR14',
-                  'https://picsum.photos/202/150',
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Indicador de precio medio
-          Row(
-            children: [
-              Icon(Icons.euro, color: Colors.teal, size: 16),
-              SizedBox(width: 4),
-              Text(
-                'PRECIO MEDIO DE EUR16',
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Carta',
                 style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
+                  color: Colors.black,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Última modificación: ${DateTime.now().year}',
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'PLATOS POPULARES',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    if (restaurante.menus.isNotEmpty)
+                      ...restaurante.menus
+                          .take(3)
+                          .map(
+                            (menu) => _buildPopularDishCard(
+                              menu['nombre'] ?? 'Plato sin nombre',
+                              '\$${menu['precio']?.toStringAsFixed(2) ?? '0.00'}',
+                              menu['imagen_url'],
+                            ),
+                          )
+                    else
+                      Text('No hay menús disponibles'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Icon(Icons.euro, color: Colors.teal, size: 16),
+                  SizedBox(width: 4),
+                  Text(
+                    'PRECIO MEDIO DE \$${restaurante.menus.isNotEmpty ? (restaurante.menus.map((m) => m['precio'] ?? 0).reduce((a, b) => a + b) / restaurante.menus.length).toStringAsFixed(2) : '0.00'}',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              if (restaurante.menus.isNotEmpty)
+                ...restaurante.menus
+                    .map(
+                      (menu) => _buildDishItem(
+                        menu['nombre'] ?? 'Plato sin nombre',
+                        menu['descripcion'] ?? 'Sin descripción',
+                        '\$${menu['precio']?.toStringAsFixed(2) ?? '0.00'}',
+                      ),
+                    )
+                    .toList(),
+              const SizedBox(height: 24),
+              Center(
+                child: TextButton(
+                  onPressed: () {},
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'VER TODA LA CARTA',
+                        style: TextStyle(
+                          color: Colors.teal,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Icon(Icons.chevron_right, color: Colors.teal, size: 16),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
-
-          const SizedBox(height: 24),
-
-          // Lista de platos
-          _buildDishItem(
-            'Nachos especiales',
-            'Totopos crujientes cubiertos con queso fundido, frijoles, guacamole, y pico de gallo vibrante.',
-            'EUR14',
-          ),
-          _buildDishItem(
-            'Papas especiales',
-            'Patatas crujientes cubiertas con queso fundido, frijoles, guacamole, y pico de gallo vibrante.',
-            'EUR13',
-          ),
-          _buildDishItem(
-            'Molcajete',
-            'Delicioso guacamole fresco servido en un auténtico molcajete. Acompañado de queso fresco mexicano, totopos y tortillas.',
-            'EUR12',
-          ),
-
-          const SizedBox(height: 24),
-
-          // Botón para ver toda la carta
-          Center(
-            child: TextButton(
-              onPressed: () {},
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'VER TODA LA CARTA',
-                    style: TextStyle(
-                      color: Colors.teal,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Icon(Icons.chevron_right, color: Colors.teal, size: 16),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   Widget _buildDetailsSection() {
-    return Container(
-      key: _detailsKey,
-      width: double.infinity,
-      constraints: BoxConstraints(
-        maxWidth: MediaQuery.of(context).size.width * 0.9,
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Google Maps section
-          SizedBox(
-            height: 200,
-            width: double.infinity,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Stack(
+    return FutureBuilder<Restaurante>(
+      future: _restauranteFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError) {
+          return Center(child: Text('Error al cargar detalles'));
+        }
+
+        final restaurante = snapshot.data!;
+
+        return Container(
+          key: _detailsKey,
+          width: double.infinity,
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.9,
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 24),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  GoogleMap(
-                    initialCameraPosition: const CameraPosition(
-                      target: _center,
-                      zoom: 15.0,
-                    ),
-                    markers: _markers,
-                    onMapCreated: (GoogleMapController controller) {
-                      _mapController.complete(controller);
-                    },
+                  const Text(
+                    'Información adicional',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
-                  Positioned(
-                    bottom: 10,
-                    left: 10,
-                    child: Image.asset('assets/google_logo.png', height: 20),
+                  const SizedBox(height: 16),
+                  _buildInfoRow(
+                    Icons.description_outlined,
+                    'Descripción',
+                    restaurante.categoria,
+                  ),
+                  const Divider(),
+                  _buildInfoRow(
+                    Icons.phone_outlined,
+                    'Teléfono',
+                    restaurante.telefono,
+                    valueColor: Colors.teal,
+                  ),
+                  const Divider(),
+                  _buildInfoRow(
+                    Icons.monetization_on_outlined,
+                    'Precio',
+                    'Hasta \$30',
+                  ),
+                  const Divider(),
+                  _buildInfoRow(
+                    Icons.restaurant_menu,
+                    'Cocina',
+                    restaurante.tipoRestaurante,
+                  ),
+                  const Divider(),
+                  _buildInfoRow(
+                    Icons.access_time,
+                    'Horarios',
+                    '${restaurante.horarioApertura} - ${restaurante.horarioCierre}',
+                  ),
+                  const Divider(),
+                  _buildInfoRow(
+                    Icons.credit_card,
+                    'Opciones de pago',
+                    'Mastercard, Visa',
+                  ),
+                  const Divider(),
+                  _buildInfoRow(
+                    Icons.local_parking,
+                    'Estacionamiento',
+                    'Estacionamiento en vía pública',
+                  ),
+                  const Divider(),
+                  _buildInfoRow(
+                    Icons.accessibility_new,
+                    'Código de etiqueta',
+                    'Ropa informal',
                   ),
                 ],
               ),
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Información adicional
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Información adicional',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-
-              // Descripción
-              _buildInfoRow(
-                Icons.description_outlined,
-                'Descripción',
-                'Restaurant especializado en comida estilo americano con una variedad amplia de comida rápida, teniendo como especialidad las hamburguesas. Bar con variedad cocteles de autor y tradicionales, bebidas con y sin alcohol. Ambiente acogedor con tres diferentes areas preparadas para brindas un excelente servicio y una experiencia inolvidable para nuestros clientes.',
-              ),
-
-              const Divider(),
-
-              // Teléfono
-              _buildInfoRow(
-                Icons.phone_outlined,
-                'Teléfono',
-                '75788100',
-                valueColor: Colors.teal,
-              ),
-
-              const Divider(),
-
-              // Precio
-              _buildInfoRow(
-                Icons.monetization_on_outlined,
-                'Precio',
-                'Hasta \$30',
-              ),
-
-              const Divider(),
-
-              // Cocina
-              _buildInfoRow(Icons.restaurant_menu, 'Cocina', 'Hamburguesas'),
-
-              const Divider(),
-
-              // Horarios
-              _buildInfoRow(Icons.access_time, 'Horarios', 'Dom 16:00–23:00'),
-
-              const Divider(),
-
-              // Opciones de pago
-              _buildInfoRow(
-                Icons.credit_card,
-                'Opciones de pago',
-                'Mastercard, Visa',
-              ),
-
-              const Divider(),
-
-              // Estacionamiento
-              _buildInfoRow(
-                Icons.local_parking,
-                'Estacionamiento',
-                'Estacionamiento en vía pública',
-              ),
-
-              const Divider(),
-
-              // Código de etiqueta
-              _buildInfoRow(
-                Icons.accessibility_new,
-                'Código de etiqueta',
-                'Ropa informal',
-              ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
+  }
+
+  void _scrollToSection(int sectionIndex) {
+    setState(() {
+      _currentSection = sectionIndex;
+    });
+    final contextMap = {0: _reservationsKey, 1: _menuKey, 2: _detailsKey};
+    final key = contextMap[sectionIndex];
+    if (key != null && key.currentContext != null) {
+      Scrollable.ensureVisible(
+        key.currentContext!,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  void _navigateToReservation(BuildContext context) {
+    // TODO: Implement navigation to reservation screen
+    // Example: Navigator.push(context, MaterialPageRoute(builder: (context) => ReservaScreen()));
   }
 
   @override
@@ -1051,12 +1057,10 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                 _buildReservationsSection(),
                 _buildMenuSection(),
                 _buildDetailsSection(),
-                SizedBox(height: 80), // Espacio para el botón flotante
+                SizedBox(height: 80),
               ],
             ),
           ),
-
-          // Sticky navigation bar that appears when scrolling past address
           AnimatedPositioned(
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeInOut,

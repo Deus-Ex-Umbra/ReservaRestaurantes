@@ -4,80 +4,18 @@ void main() {
   runApp(const MaterialApp(home: ProfileSettingsPage()));
 }
 
-// Background reusable
+// Background reusable - Versión simplificada sin fondo amarillo ni íconos de comida
 class FoodieBackground extends StatelessWidget {
   final Widget? child;
-  final double foodOpacity;
-  final bool showSaladBowl;
-  final bool showBurger;
-  final bool showFries;
-  final bool showDrink;
-  final bool showPizza;
-  final bool showTaco;
 
-  const FoodieBackground({
-    Key? key,
-    this.child,
-    this.foodOpacity = 0.15,
-    this.showSaladBowl = true,
-    this.showBurger = true,
-    this.showFries = true,
-    this.showDrink = true,
-    this.showPizza = true,
-    this.showTaco = true,
-  }) : super(key: key);
+  const FoodieBackground({Key? key, this.child}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // Background with light color
-        Container(color: const Color(0xFFFAFAFA)),
-
-        // Food icons with opacity
-        Opacity(
-          opacity: foodOpacity,
-          child: Stack(
-            children: [
-              if (showSaladBowl)
-                Positioned(
-                  top: 100,
-                  right: 30,
-                  child: Image.asset('assets/salad.png', width: 80),
-                ),
-              if (showBurger)
-                Positioned(
-                  bottom: 150,
-                  left: 20,
-                  child: Image.asset('assets/burger.png', width: 70),
-                ),
-              if (showFries)
-                Positioned(
-                  bottom: 300,
-                  right: 40,
-                  child: Image.asset('assets/fries.png', width: 60),
-                ),
-              if (showDrink)
-                Positioned(
-                  top: 400,
-                  left: 50,
-                  child: Image.asset('assets/drink.png', width: 50),
-                ),
-              if (showPizza)
-                Positioned(
-                  bottom: 50,
-                  right: 100,
-                  child: Image.asset('assets/pizza.png', width: 90),
-                ),
-              if (showTaco)
-                Positioned(
-                  top: 200,
-                  left: 100,
-                  child: Image.asset('assets/taco.png', width: 60),
-                ),
-            ],
-          ),
-        ),
+        // Fondo blanco simple
+        Container(color: Colors.white),
 
         // Main content with 80% width constraint
         Center(

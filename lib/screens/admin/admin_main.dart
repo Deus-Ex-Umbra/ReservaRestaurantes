@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'admin_restaurants.dart';
 import 'admin_users.dart';
-import 'admin_reports.dart';
 
 class AdminMainScreen extends StatefulWidget {
   const AdminMainScreen({Key? key}) : super(key: key);
@@ -60,7 +59,6 @@ class _AdminMainScreenState extends State<AdminMainScreen>
   static final List<Widget> _widgetOptions = <Widget>[
     AdminRestaurantsScreen(),
     AdminUsersScreen(),
-    AdminReportsScreen(),
   ];
 
   @override
@@ -176,12 +174,6 @@ class _AdminMainScreenState extends State<AdminMainScreen>
                   title: 'Administradores',
                   subtitle: 'Control de usuarios admin',
                   index: 1,
-                ),
-                _buildModernDrawerItem(
-                  icon: Icons.analytics_outlined,
-                  title: 'Reportes',
-                  subtitle: 'Estadísticas y análisis',
-                  index: 2,
                 ),
               ],
             ),
@@ -683,13 +675,11 @@ class _AdminMainScreenState extends State<AdminMainScreen>
                   [
                     'Nuevo restaurante registrado',
                     'Administrador agregado',
-                    'Reporte generado',
                   ][index],
               subtitle:
                   [
                     'Sabores del Mar - Zona Norte',
                     'María González - Sucursal Centro',
-                    'Reporte mensual de ventas',
                   ][index],
               time: ['Hace 15 min', 'Hace 1 hora', 'Hace 2 horas'][index],
               color: [Colors.green, Colors.blue, Colors.orange][index],
@@ -891,11 +881,6 @@ class _AdminMainScreenState extends State<AdminMainScreen>
               icon: _buildNavIcon(Icons.people_outline, 1),
               activeIcon: _buildActiveNavIcon(Icons.people, 1),
               label: 'Administradores',
-            ),
-            BottomNavigationBarItem(
-              icon: _buildNavIcon(Icons.analytics_outlined, 2),
-              activeIcon: _buildActiveNavIcon(Icons.analytics, 2),
-              label: 'Reportes',
             ),
           ],
           currentIndex: _selectedIndex,
